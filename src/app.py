@@ -31,6 +31,8 @@ class PixelArtApp:
         self.canvas_size = None      # 存储画布尺寸
         self.frames_data = None      # 存储原始帧数据
         self.palette = None          # 存储调色板
+        self.selected_color = None   # 存储当前选中的颜色
+        self.palette_buttons = {}    # 存储调色板按钮以更新UI
 
         # 创建Tkinter变量，用于绑定UI控件
         self.transparent_var = tk.BooleanVar()
@@ -50,12 +52,13 @@ class PixelArtApp:
         self.json_text = scrolledtext.ScrolledText(left_frame, wrap=tk.WORD, width=50, height=30)
         self.json_text.pack(fill=tk.BOTH, expand=True, padx=5, pady=(0,5))
 
-        # --- 右侧面板 (预览和控制) ---
-        right_frame = ttk.Frame(self.paned_window, width=400, height=580)
-        self.paned_window.add(right_frame, weight=2)
+        # --- 右侧主面板 ---
+        right_main_frame = ttk.Frame(self.paned_window, width=500, height=580)
+        self.paned_window.add(right_main_frame, weight=2)
 
-        right_content_frame = tk.Frame(right_frame)
-        right_content_frame.pack(pady=10, padx=10)
+        # --- 右侧面板 (预览和控制) ---
+        right_content_frame = ttk.Frame(right_main_frame)
+        right_content_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, pady=10, padx=10)
 
         preview_label = tk.Label(right_content_frame, text="预览:")
         preview_label.pack(anchor='w')
@@ -71,6 +74,17 @@ class PixelArtApp:
         # 控制按钮和选项的框架
         controls_frame = tk.Frame(right_content_frame)
         controls_frame.pack(fill=tk.X, pady=5)
+        
+        # --- 调色板UI ---
+        palette_frame = ttk.Frame(right_main_frame, width=100)
+        palette_frame.pack(side=tk.RIGHT, fill=tk.Y, padx=(0, 10), pady=10)
+        
+        palette_label = tk.Label(palette_frame, text="调色板:")
+        palette_label.pack(anchor='n', pady=(0, 5))
+        
+        self.palette_container = tk.Frame(palette_frame)
+        self.palette_container.pack(fill=tk.BOTH, expand=True)
+
 
         self.transparent_check = tk.Checkbutton(controls_frame, text="透明背景", var=self.transparent_var)
         self.transparent_check.pack(anchor='w', pady=(0, 5))
@@ -150,6 +164,7 @@ class PixelArtApp:
             self.current_frame_index = 0
             self.save_button.config(state=tk.NORMAL) # 激活保存按钮
             self.play_animation()
+            self.update_palette_ui() # 更新调色板UI
 
         except json.JSONDecodeError:
             messagebox.showerror("错误", "无效的JSON格式。")
@@ -178,6 +193,61 @@ class PixelArtApp:
         # 如果有多于一帧，则安排下一帧的播放
         if len(self.animation_frames) > 1:
             self.animation_job = self.root.after(duration, self.play_animation)
+
+    def update_palette_ui(self):
+        """
+        根据当前加载的调色板数据更新UI。
+        为每个颜色创建一个可点击的色块，并绑定选择事件。
+        """
+        # 清空旧的调色板按钮
+        for widget in self.palette_container.winfo_children():
+            widget.destroy()
+        self.palette_buttons.clear()
+
+        if not self.palette:
+            return
+
+        # 遍历调色板数据，创建色块按钮
+        for color_key, hex_color in self.palette.items():
+            # 尝试将十六进制颜色转换为Tkinter支持的格式
+            try:
+                # Tkinter可以直接使用#RRGGBB格式的颜色字符串
+                tk_color = hex_color
+            except Exception:
+                # 如果颜色格式无效，则使用默认颜色
+                tk_color = "#CCCCCC" # 灰色
+
+            btn = tk.Button(self.palette_container,
+                            bg=tk_color,
+                            width=2, height=1, # 小尺寸按钮
+                            relief=tk.RAISED, # 凸起效果
+                            borderwidth=1,
+                            command=lambda ck=color_key, hc=hex_color: self.select_color(ck, hc))
+            btn.pack(pady=2, padx=2, fill=tk.X)
+            self.palette_buttons[color_key] = btn
+        
+        # 默认选中第一个颜色（如果存在）
+        if self.palette and not self.selected_color:
+            first_key = list(self.palette.keys())[0]
+            first_hex = self.palette[first_key]
+            self.select_color(first_key, first_hex)
+
+    def select_color(self, color_key, hex_color):
+        """
+        处理颜色选择事件，更新当前选中的颜色，并更新UI。
+        :param color_key: 选中的颜色在调色板中的键（例如 '0', '1'）。
+        :param hex_color: 选中的颜色的十六进制值（例如 '#FFFFFF'）。
+        """
+        # 移除之前选中颜色的边框
+        if self.selected_color and self.selected_color in self.palette_buttons:
+            self.palette_buttons[self.selected_color].config(relief=tk.RAISED, borderwidth=1)
+
+        # 设置当前选中的颜色
+        self.selected_color = color_key
+
+        # 给新选中的颜色添加边框
+        if color_key in self.palette_buttons:
+            self.palette_buttons[color_key].config(relief=tk.SUNKEN, borderwidth=2) # 凹陷效果，边框加粗
 
     # 保存图像或动画的函数
     def save_image(self):
