@@ -356,6 +356,56 @@ class PixelArtApp:
             # 使用新方法更新显示
             self._update_display_image(new_pil_image)
 
+    def _update_json_text(self):
+        """
+        根据当前的应用状态，重建JSON数据并更新文本框，同时优化可读性。
+        """
+        if not self.canvas_size:
+            return
+
+        # 手动构建JSON字符串以获得更好的格式
+        lines = [
+            "{",
+            f'    "canvas_size": {json.dumps(self.canvas_size)},',
+            f'    "palette": {json.dumps(self.palette, indent=4)},'
+        ]
+
+        # 格式化 'pixels' 或 'frames' 数据
+        if self.frames_data is not None:
+            lines.append('    "frames": [')
+            num_frames = len(self.frames_data)
+            for frame_index, frame in enumerate(self.frames_data):
+                lines.append('        [')
+                num_rows = len(frame)
+                for row_index, row in enumerate(frame):
+                    row_str = f'            {json.dumps(row)}'
+                    if row_index < num_rows - 1:
+                        row_str += ','
+                    lines.append(row_str)
+                
+                frame_end = '        ]'
+                if frame_index < num_frames - 1:
+                    frame_end += ','
+                lines.append(frame_end)
+            lines.append('    ]')
+
+        elif self.pixels_data is not None:
+            lines.append('    "pixels": [')
+            num_rows = len(self.pixels_data)
+            for row_index, row in enumerate(self.pixels_data):
+                row_str = f'        {json.dumps(row)}'
+                if row_index < num_rows - 1:
+                    row_str += ','
+                lines.append(row_str)
+            lines.append('    ]')
+        
+        lines.append("}")
+        json_string = "\n".join(lines)
+
+        # 更新文本框内容
+        self.json_text.delete('1.0', tk.END)
+        self.json_text.insert(tk.END, json_string)
+
     def handle_draw(self, event):
         """处理鼠标左键点击和拖动事件，用于绘制。"""
         if self.selected_color is None:
@@ -368,7 +418,12 @@ class PixelArtApp:
             return
         
         row, col = coords
-        color_key = self.selected_color
+        # 将选中的颜色键转换为整数
+        try:
+            color_key = int(self.selected_color)
+        except (ValueError, TypeError):
+            print(f"Debug: Invalid color key: {self.selected_color}")
+            return
 
         # 根据是单帧还是动画，更新对应的数据
         if self.pixels_data is not None:
@@ -380,6 +435,7 @@ class PixelArtApp:
                 current_frame_data[row][col] = color_key
         
         self.update_canvas_image()
+        self._update_json_text()
 
 
     def handle_erase(self, event):
@@ -391,8 +447,8 @@ class PixelArtApp:
         
         row, col = coords
         
-        # 使用背景色键（通常是'0'）进行擦除
-        erase_key = '0'
+        # 使用整数键 0 进行擦除
+        erase_key = 0
 
         if self.pixels_data is not None:
             if 0 <= row < len(self.pixels_data) and 0 <= col < len(self.pixels_data[0]):
@@ -403,6 +459,7 @@ class PixelArtApp:
                 current_frame_data[row][col] = erase_key
 
         self.update_canvas_image()
+        self._update_json_text()
 
     # 保存图像或动画的函数
     def save_image(self):
