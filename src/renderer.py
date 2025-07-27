@@ -71,11 +71,12 @@ def render_from_data(data, transparent_bg=False):
     if 'frames' in data and data['frames']:
         frames_data = data['frames']
         images = [create_image_from_pixels(frame, palette, canvas_width, canvas_height, transparent_bg) for frame in frames_data]
-        return images
+        sprite_sheet = create_sprite_sheet(images) # 直接创建雪碧图
+        return images, sprite_sheet # 返回图像列表和雪碧图
     elif 'pixels' in data:
         pixel_data = data['pixels']
         img = create_image_from_pixels(pixel_data, palette, canvas_width, canvas_height, transparent_bg)
-        return [img]
+        return [img], None # 返回单图像列表和None
     else:
         raise ValueError("JSON 数据必须包含 'pixels' 或 'frames' 键。")
 
@@ -107,23 +108,19 @@ if __name__ == '__main__':
         data = json.load(f)
     
     try:
-        # 从数据渲染图像列表
-        images = render_from_data(data, args.transparent)
+        # 从数据渲染图像列表和可能的雪碧图
+        images, sprite_sheet = render_from_data(data, args.transparent)
         
         if not images:
             print("错误：未能从JSON数据生成任何图像。")
-        elif len(images) == 1:
+        elif sprite_sheet:
+            # 如果有多张图片（动画帧），创建并保存雪碧图
+            sprite_sheet.save(args.output_file, 'PNG')
+            print(f"成功将动画雪碧图渲染到 {args.output_file}")
+        else:
             # 如果只有一张图片，直接保存
             images[0].save(args.output_file, 'PNG')
             print(f"成功将单张图片渲染到 {args.output_file}")
-        else:
-            # 如果有多张图片（动画帧），创建并保存雪碧图
-            sprite_sheet = create_sprite_sheet(images)
-            if sprite_sheet:
-                sprite_sheet.save(args.output_file, 'PNG')
-                print(f"成功将动画雪碧图渲染到 {args.output_file}")
-            else:
-                print("错误：创建雪碧图失败。")
 
     except (ValueError, KeyError) as e:
         print(f"错误: {e}")
