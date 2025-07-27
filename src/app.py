@@ -14,7 +14,7 @@ from event_handlers import EventHandlers
 class PixelArtApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("AI 像素艺术动画生成器")
+        self.root.title("像素艺术动画生成器")
         self.root.geometry("900x600")
 
         # --- 路径设置 ---
