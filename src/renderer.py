@@ -24,8 +24,8 @@ def create_image_from_pixels(pixel_data, palette, canvas_width, canvas_height, t
             if y < len(pixel_data) and x < len(pixel_data[y]):
                 pixel_value = pixel_data[y][x]
                 
-                # 如果勾选了透明背景，则跳过值为0的像素
-                if transparent_bg and pixel_value == 0:
+                # 如果勾选了透明背景，则跳过值为'0'的像素
+                if transparent_bg and str(pixel_value) == '0':
                     continue
 
                 # 从调色板中获取颜色并绘制像素
