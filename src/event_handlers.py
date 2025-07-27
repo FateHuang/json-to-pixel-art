@@ -71,6 +71,21 @@ class EventHandlers:
         if color_key in self.app.state.palette_buttons:
             self.app.state.palette_buttons[color_key].config(relief="sunken", borderwidth=2)
 
+    def handle_play_pause(self):
+        """处理播放/暂停按钮的点击事件。"""
+        if self.app.state.is_playing:
+            self.app.pause_animation()
+        else:
+            self.app.play_animation()
+
+    def handle_prev_frame(self):
+        """处理“上一帧”按钮的点击事件。"""
+        self.app.change_frame(-1)
+
+    def handle_next_frame(self):
+        """处理“下一帧”按钮的点击事件。"""
+        self.app.change_frame(1)
+
     def screen_to_grid_coords(self, event_x, event_y):
         """
         将屏幕上的点击坐标转换为像素网格坐标。

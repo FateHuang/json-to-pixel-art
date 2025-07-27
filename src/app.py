@@ -39,12 +39,16 @@ class PixelArtApp:
         # --- 设置UI ---
         self.ui.setup_ui()
 
+        # --- 绑定动画控制事件 ---
+        self.prev_frame_button.config(command=self.event_handlers.handle_prev_frame)
+        self.play_pause_button.config(command=self.event_handlers.handle_play_pause)
+        self.next_frame_button.config(command=self.event_handlers.handle_next_frame)
+
     # 渲染图像或动画的函数
     def render_image(self):
-        # 如果有正在播放的动画，先取消
-        if self.state.animation_job:
-            self.root.after_cancel(self.state.animation_job)
-            self.state.animation_job = None
+        # 如果有正在播放的动画，先暂停
+        if self.state.is_playing:
+            self.pause_animation()
 
         json_string = self.json_text.get("1.0", tk.END)
         if not json_string.strip():
@@ -75,19 +79,23 @@ class PixelArtApp:
             
             if not self.state.pil_images:
                 messagebox.showwarning("警告", "无法从JSON渲染任何帧。")
+                self.update_animation_controls() # 禁用控件
                 return
 
             self.state.current_frame_index = 0
             self.save_button.config(state=tk.NORMAL) # 激活保存按钮
-            self.play_animation()
+            self.update_animation_controls() # 更新控件状态
+            self.play_animation() # 自动播放
             self.update_palette_ui() # 更新调色板UI
 
         except json.JSONDecodeError:
             messagebox.showerror("错误", "无效的JSON格式。")
             self.save_button.config(state=tk.DISABLED)
+            self.update_animation_controls() # 禁用控件
         except Exception as e:
             messagebox.showerror("错误", f"渲染失败: {e}")
             self.save_button.config(state=tk.DISABLED)
+            self.update_animation_controls() # 禁用控件
 
     def _update_display_image(self, pil_image):
         """
@@ -112,26 +120,74 @@ class PixelArtApp:
         # 必须保留对PhotoImage的引用，否则它会被垃圾回收
         self.image_label.image = tk_image
 
-    # 播放动画的函数
     def play_animation(self):
-        if not self.state.pil_images:
+        """开始或恢复动画播放。"""
+        if not self.state.pil_images or len(self.state.pil_images) <= 1:
+            # 如果没有图像或只有一帧，则只显示第一帧
+            if self.state.pil_images:
+                self._update_display_image(self.state.pil_images[0])
             return
 
-        # 获取当前帧的Pillow图像并显示
+        self.state.is_playing = True
+        self.play_pause_button.config(text="暂停")
+        self._animation_loop()
+
+    def pause_animation(self):
+        """暂停动画播放。"""
+        if self.state.animation_job:
+            self.root.after_cancel(self.state.animation_job)
+            self.state.animation_job = None
+        self.state.is_playing = False
+        if hasattr(self, 'play_pause_button'): # 确保按钮已创建
+            self.play_pause_button.config(text="播放")
+
+    def _animation_loop(self):
+        """动画播放的核心循环。"""
+        if not self.state.is_playing:
+            return
+
         current_pil_image = self.state.pil_images[self.state.current_frame_index]
         self._update_display_image(current_pil_image)
+        self.update_animation_controls() # 更新帧指示器
 
-        # 移动到下一帧，如果到了末尾则循环
         self.state.current_frame_index = (self.state.current_frame_index + 1) % len(self.state.pil_images)
         
         try:
             duration = int(self.duration_var.get())
         except ValueError:
-            duration = 100 # 如果输入无效，则使用默认值
+            duration = 100
 
-        # 如果有多于一帧，则安排下一帧的播放
-        if len(self.state.pil_images) > 1:
-            self.state.animation_job = self.root.after(duration, self.play_animation)
+        self.state.animation_job = self.root.after(duration, self._animation_loop)
+
+    def change_frame(self, delta):
+        """手动更改当前帧。"""
+        if not self.state.pil_images:
+            return
+        
+        # 暂停动画以进行手动更改
+        if self.state.is_playing:
+            self.pause_animation()
+
+        num_frames = len(self.state.pil_images)
+        self.state.current_frame_index = (self.state.current_frame_index + delta + num_frames) % num_frames
+        
+        current_pil_image = self.state.pil_images[self.state.current_frame_index]
+        self._update_display_image(current_pil_image)
+        self.update_animation_controls()
+
+    def update_animation_controls(self):
+        """根据当前状态更新动画控制按钮和标签。"""
+        num_frames = len(self.state.pil_images) if self.state.pil_images else 0
+        is_animation = num_frames > 1
+
+        self.prev_frame_button.config(state=tk.NORMAL if is_animation else tk.DISABLED)
+        self.play_pause_button.config(state=tk.NORMAL if is_animation else tk.DISABLED)
+        self.next_frame_button.config(state=tk.NORMAL if is_animation else tk.DISABLED)
+
+        if num_frames > 0:
+            self.frame_indicator_label.config(text=f"{self.state.current_frame_index + 1}/{num_frames}")
+        else:
+            self.frame_indicator_label.config(text="0/0")
 
     def update_palette_ui(self):
         """

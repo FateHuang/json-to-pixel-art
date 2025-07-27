@@ -58,6 +58,23 @@ class UIManager:
         self.app.image_label.bind("<Button-3>", self.app.event_handlers.handle_erase)
         self.app.image_label.bind("<B3-Motion>", self.app.event_handlers.handle_erase)
 
+        # --- 动画控制条 ---
+        animation_controls_frame = tk.Frame(right_content_frame)
+        animation_controls_frame.pack(fill=tk.X, pady=5)
+
+        self.app.prev_frame_button = tk.Button(animation_controls_frame, text="< 上一帧", state=tk.DISABLED)
+        self.app.prev_frame_button.pack(side=tk.LEFT, padx=(0, 5))
+
+        self.app.play_pause_button = tk.Button(animation_controls_frame, text="播放", state=tk.DISABLED)
+        self.app.play_pause_button.pack(side=tk.LEFT, expand=True, fill=tk.X)
+
+        self.app.next_frame_button = tk.Button(animation_controls_frame, text="下一帧 >", state=tk.DISABLED)
+        self.app.next_frame_button.pack(side=tk.LEFT, padx=(5, 0))
+        
+        self.app.frame_indicator_label = tk.Label(animation_controls_frame, text="0/0")
+        self.app.frame_indicator_label.pack(side=tk.RIGHT, padx=(5, 0))
+
+
         # 控制按钮和选项的框架
         controls_frame = tk.Frame(right_content_frame)
         controls_frame.pack(fill=tk.X, pady=5)
